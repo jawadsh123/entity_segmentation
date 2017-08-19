@@ -3,9 +3,9 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-THRESHOLD = 0.02
+THRESHOLD = 0.1
 
-image_name = "bold_text.png"
+image_name = "toons.jpg"
 img = cv2.imread(image_name, 0)
 img = cv2.bitwise_not(img)
 
@@ -20,9 +20,14 @@ row_histo_width = 400
 row_histogram = np.zeros((row_histo_height, row_histo_width), np.uint8)
 
 # Calculating horizontal histogram
+row_histo_width = 0
 for row in range(row_histo_height):
 	running_sum = sum(img[row, :]) // 255
 	row_histogram[row, :running_sum] = 255
+	if running_sum > row_histo_width:
+		row_histo_width = running_sum
+# cut off the histogram image where histo ends
+row_histogram = row_histogram[:, :row_histo_width]
 
 # calculating bounding indexes for rows using the histogram 
 all_digit_rects = []
@@ -45,10 +50,18 @@ if len(line_rects) == 0:
 for idx, line_rect in enumerate(line_rects):
 	line = img[line_rect[0]:line_rect[1], :]
 
+	# Initializing vertical histogram
+	col_histo_width = img.shape[1]
+	col_histogram = np.zeros((col_histo_height, col_histo_width), np.uint8)
+
 	# calculating vertical histogram for current row
+	col_histo_height = 0
 	for column in range(col_histo_width):
 		running_sum = sum(line[:, column]) // 255
 		col_histogram[:running_sum, column] = 255
+		if running_sum > col_histo_height:
+			col_histo_height = running_sum
+	col_histogram = col_histogram[:col_histo_height, :]
 
 	# calculating bounding boxes for each digit
 	digit_rects = []
@@ -59,11 +72,12 @@ for idx, line_rect in enumerate(line_rects):
 			starting_idx = j
 		elif col_histogram[thresholded_idx,j] != 255 and starting_idx != False:
 			last_idx = j
-			if abs(starting_idx - last_idx) > 20:
+			if abs(starting_idx - last_idx) > 10:
 				digit_rects.append((starting_idx, last_idx))
 			starting_idx = False
 	for digit in digit_rects:
 		all_digit_rects.append((line_rect[0],line_rect[1], digit[0], digit[1]))
+
 
 # To make it pretty
 col_histogram = cv2.bitwise_not(col_histogram)
